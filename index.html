@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NemaClock</title>
+  <style>
+    :root {
+      --primary: #21432a;
+      --primary-light: #2d5a39;
+      --white: #ffffff;
+      --muted: rgba(255, 255, 255, 0.65);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: var(--primary);
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 380px;
+      padding: 32px 28px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      background: var(--primary-light);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      font-size: 1.1rem;
+      color: var(--white);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      outline: none;
+      color-scheme: dark;
+    }
+
+    input:focus { border-color: var(--white); }
+
+    .result {
+      margin-top: 8px;
+      padding: 24px;
+      text-align: center;
+      background: var(--white);
+      color: var(--primary);
+      border-radius: 14px;
+    }
+
+    .result-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .result-time {
+      font-size: 2.6rem;
+      font-weight: 700;
+      margin: 6px 0;
+    }
+
+    .result-note { font-size: 0.85rem; opacity: 0.8; }
+
+    .footnote {
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>NemaClock</h1>
+
+    <label for="hours">Hours worked this week (e.g. 32.5 or 32:30)</label>
+    <input id="hours" type="text" inputmode="decimal" placeholder="32.5" autocomplete="off">
+
+    <label for="clockIn">Clocked in today at</label>
+    <input id="clockIn" type="time">
+
+    <div class="result">
+      <div class="result-label">Clock out at</div>
+      <div class="result-time" id="outTime">--:--</div>
+      <div class="result-note" id="outNote">Enter your hours and clock-in time</div>
+    </div>
+
+    <p class="footnote">Includes a 30 minute unpaid lunch. Target: 40 hours.</p>
+  </main>
+
+  <script>
+    const TARGET_MIN = 40 * 60;
+    const LUNCH_MIN = 30;
+
+    const hoursEl = document.getElementById("hours");
+    const clockInEl = document.getElementById("clockIn");
+    const outTime = document.getElementById("outTime");
+    const outNote = document.getElementById("outNote");
+
+    // Accepts "32.5" (decimal hours) or "32:30" (hours:minutes). Returns minutes or NaN.
+    function parseHours(value) {
+      value = value.trim();
+      if (value.includes(":")) {
+        const [h, m] = value.split(":").map(Number);
+        return m >= 0 && m < 60 ? h * 60 + m : NaN;
+      }
+      return value === "" ? NaN : Number(value) * 60;
+    }
+
+    function formatTime(totalMin) {
+      const h24 = Math.floor(totalMin / 60) % 24;
+      const m = totalMin % 60;
+      const h12 = h24 % 12 || 12;
+      return `${h12}:${String(m).padStart(2, "0")} ${h24 < 12 ? "AM" : "PM"}`;
+    }
+
+    function update() {
+      const workedMin = Math.round(parseHours(hoursEl.value));
+      const clockIn = clockInEl.value;
+
+      if (isNaN(workedMin) || workedMin < 0 || !clockIn) {
+        outTime.textContent = "--:--";
+        outNote.textContent = "Enter your hours and clock-in time";
+        return;
+      }
+
+      const remainingMin = TARGET_MIN - workedMin;
+      if (remainingMin <= 0) {
+        outTime.textContent = "Done";
+        outNote.textContent = "You're already at 40 hours";
+        return;
+      }
+
+      const [h, m] = clockIn.split(":").map(Number);
+      const outMin = h * 60 + m + remainingMin + LUNCH_MIN;
+
+      const rh = Math.floor(remainingMin / 60);
+      const rm = remainingMin % 60;
+      outTime.textContent = formatTime(outMin);
+      outNote.textContent = `${rh}h ${rm}m left to work` + (outMin >= 24 * 60 ? " (past midnight)" : "");
+    }
+
+    hoursEl.addEventListener("input", update);
+    clockInEl.addEventListener("input", update);
+  </script>
+</body>
+</html>
