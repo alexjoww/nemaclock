@@ -50,7 +50,7 @@
       margin-bottom: 8px;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 14px 16px;
       margin-bottom: 20px;
@@ -63,7 +63,24 @@
       color-scheme: dark;
     }
 
-    input:focus { border-color: var(--white); }
+    input:focus, select:focus { border-color: var(--white); }
+
+    select {
+      appearance: none;
+      padding-right: 32px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='white' stroke-opacity='0.65' stroke-width='2'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      cursor: pointer;
+    }
+
+    select option { color: var(--white); background: var(--primary); }
+
+    .time-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
 
     .result {
       margin-top: 8px;
@@ -107,8 +124,19 @@
     <label for="week1">Week 1 total (week 2 only, leave blank in week 1)</label>
     <input id="week1" type="text" inputmode="decimal" placeholder="40" autocomplete="off">
 
-    <label for="clockIn">Clocked in today at</label>
-    <input id="clockIn" type="time">
+    <label for="clockHour">Clocked in today at</label>
+    <div class="time-row">
+      <select id="clockHour" aria-label="Clock-in hour">
+        <option value="">Hr</option>
+      </select>
+      <select id="clockMinute" aria-label="Clock-in minute">
+        <option value="">Min</option>
+      </select>
+      <select id="clockAmPm" aria-label="AM or PM">
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
 
     <div class="result">
       <div class="result-label">Clock out at</div>
@@ -125,7 +153,9 @@
 
     const hoursEl = document.getElementById("hours");
     const week1El = document.getElementById("week1");
-    const clockInEl = document.getElementById("clockIn");
+    const clockHourEl = document.getElementById("clockHour");
+    const clockMinuteEl = document.getElementById("clockMinute");
+    const clockAmPmEl = document.getElementById("clockAmPm");
     const outTime = document.getElementById("outTime");
     const outNote = document.getElementById("outNote");
 
@@ -139,6 +169,16 @@
       return value === "" ? NaN : Number(value) * 60;
     }
 
+    for (let h = 1; h <= 12; h++) clockHourEl.add(new Option(h, h));
+    for (let m = 0; m < 60; m++) clockMinuteEl.add(new Option(String(m).padStart(2, "0"), m));
+
+    // Returns clock-in as minutes after midnight, or null if hour/minute not chosen.
+    function getClockInMin() {
+      if (clockHourEl.value === "" || clockMinuteEl.value === "") return null;
+      const h24 = (Number(clockHourEl.value) % 12) + (clockAmPmEl.value === "PM" ? 12 : 0);
+      return h24 * 60 + Number(clockMinuteEl.value);
+    }
+
     function formatTime(totalMin) {
       const h24 = Math.floor(totalMin / 60) % 24;
       const m = totalMin % 60;
@@ -150,9 +190,9 @@
       const totalMin = Math.round(parseHours(hoursEl.value));
       // Week 1 total is optional; blank means we're in week 1.
       const week1Min = week1El.value.trim() === "" ? 0 : Math.round(parseHours(week1El.value));
-      const clockIn = clockInEl.value;
+      const clockInMin = getClockInMin();
 
-      if (isNaN(totalMin) || totalMin < 0 || !clockIn) {
+      if (isNaN(totalMin) || totalMin < 0 || clockInMin === null) {
         outTime.textContent = "--:--";
         outNote.textContent = "Enter your hours and clock-in time";
         return;
@@ -175,8 +215,7 @@
         return;
       }
 
-      const [h, m] = clockIn.split(":").map(Number);
-      const outMin = h * 60 + m + remainingMin + LUNCH_MIN;
+      const outMin = clockInMin + remainingMin + LUNCH_MIN;
 
       const rh = Math.floor(remainingMin / 60);
       const rm = remainingMin % 60;
@@ -186,7 +225,9 @@
 
     hoursEl.addEventListener("input", update);
     week1El.addEventListener("input", update);
-    clockInEl.addEventListener("input", update);
+    clockHourEl.addEventListener("change", update);
+    clockMinuteEl.addEventListener("change", update);
+    clockAmPmEl.addEventListener("change", update);
   </script>
 </body>
 </html>
